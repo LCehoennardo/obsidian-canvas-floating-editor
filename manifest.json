@@ -1,0 +1,8 @@
+{
+	"id": "canvas-floating-editor",
+	"name": "Canvas Floating Editor",
+	"minAppVersion": "1.9.0",
+	"description": "Adds a floating WYSIWYG editor for canvas text nodes, reachable from the node toolbar and context menu.",
+	"author": "chenjialian",
+	"isDesktopOnly": false
+}

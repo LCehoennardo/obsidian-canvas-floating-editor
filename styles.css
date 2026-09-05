@@ -1,0 +1,121 @@
+/*
+Canvas Floating Editor Plugin Styles
+*/
+
+/* ─── Floating Editor Modal ──────────────────────────────────────────────── */
+
+.cfe-modal {
+	max-width: 90vw;
+	max-height: 85vh;
+	min-width: 200px;
+	min-height: 200px;
+	/* User-resizable via the bottom-right handle */
+	resize: both;
+	overflow: auto;
+}
+
+.cfe-modal .modal-content {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	height: 100%;
+}
+
+/* 编辑区尺寸由插件通过 CSS 变量注入（settings.modalWidth / modalHeight） */
+.cfe-modal.modal {
+	width: var(--editor-width, 760px);
+	height: var(--editor-height, 560px);
+}
+
+/* 原生 MarkdownView 编辑器容器 */
+.cfe-editor-container {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	overflow: hidden;
+	background: var(--background-primary);
+}
+
+.cfe-editor-container > * {
+	flex: 1;
+	min-height: 0;
+}
+
+/* 内嵌视图几何修正：游离 leaf 没有 workspace 布局，需手动给尺寸 */
+.cfe-editor-container .workspace-leaf-content {
+	position: relative;
+	width: 100%;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+}
+
+/* 隐藏“未打开文件”视图头部栏 */
+.cfe-editor-container .view-header {
+	display: none;
+}
+
+.cfe-editor-container .view-content {
+	position: absolute;
+	inset: 0;
+	height: 100%;
+}
+
+.cfe-editor-container .markdown-source-view,
+.cfe-editor-container .cm-editor {
+	height: 100%;
+}
+
+/* 保底 textarea（原生编辑器挂载失败时） */
+.cfe-fallback-textarea {
+	width: 100%;
+	height: 100%;
+	resize: none;
+	border: none;
+	outline: none;
+	box-shadow: none;
+	background: transparent;
+	font-family: var(--font-monospace);
+	font-size: 14px;
+	line-height: 1.6;
+	padding: 12px;
+	color: var(--text-normal);
+}
+
+/* 底部按钮区（保留类名以防未来使用） */
+.cfe-button-container {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	padding-top: 8px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/* ─── Toolbar Button ─────────────────────────────────────────────────────── */
+
+.cfe-float-btn {
+	background: transparent;
+	box-shadow: none;
+	border: none;
+	cursor: pointer;
+	padding: 4px 6px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-muted);
+	border-radius: 4px;
+	transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.cfe-float-btn:hover {
+	color: var(--text-normal);
+	background-color: var(--background-modifier-hover);
+}
+
+.cfe-float-btn svg {
+	width: 16px;
+	height: 16px;
+}

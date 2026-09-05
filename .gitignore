@@ -1,0 +1,15 @@
+# npm
+node_modules
+
+# Build output (goes to GitHub Releases, not the repo)
+main.js
+*.map
+
+# Obsidian runtime state
+data.json
+
+# OS / editor
+.DS_Store
+.vscode
+*.iml
+.idea
