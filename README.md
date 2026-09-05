@@ -2,7 +2,7 @@
 
 Adds a **floating editor** for Obsidian Canvas text nodes — edit node content in a large, native, WYSIWYG editor instead of the tiny inline box.
 
-![Demo](https://img.shields.io/badge/Obsidian-Canvas%20Enhancer-7c3aed)
+![Demo](https://img.shields.io/badge/Obsidian-Canvas%20Floating%20Editor-7c3aed)
 
 ## Features
 
