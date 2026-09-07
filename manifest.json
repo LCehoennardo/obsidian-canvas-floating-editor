@@ -5,5 +5,5 @@
 	"description": "Adds a floating WYSIWYG editor for canvas text nodes, reachable from the node toolbar and context menu.",
 	"author": "LCehoennardo",
 	"isDesktopOnly": false,
-	"version": "1.0.0"
+	"version": "1.0.1"
 }
