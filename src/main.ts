@@ -67,8 +67,11 @@ export default class CanvasFloatingEditorPlugin extends Plugin {
 	settings: CanvasFloatingEditorSettings = DEFAULT_SETTINGS;
 	domObserver: MutationObserver | null = null;
 	clickHandler: ((e: MouseEvent) => void) | null = null;
+	contextMenuHandler: ((e: MouseEvent) => void) | null = null;
+	lastInteractedNodeEl: HTMLElement | null = null;
 	lastToolbarEl: HTMLElement | null = null;
 	toolbarEnsureScheduled = false;
+	activeModal: FloatingEditorModal | null = null;
 
 	async onload() {
 		await this.loadSettings();
@@ -84,10 +87,16 @@ export default class CanvasFloatingEditorPlugin extends Plugin {
 	}
 
 	onunload() {
+		this.activeModal?.close();
+		this.activeModal = null;
 		this.domObserver?.disconnect();
 		if (this.clickHandler) {
 			document.removeEventListener('click', this.clickHandler);
 		}
+		if (this.contextMenuHandler) {
+			document.removeEventListener('contextmenu', this.contextMenuHandler);
+		}
+		this.lastInteractedNodeEl = null;
 		// Remove buttons injected into toolbars (hot-reload / disable cleanup)
 		const injected = document.querySelectorAll('.cfe-float-btn');
 		for (let i = 0; i < injected.length; i++) {
@@ -152,13 +161,7 @@ export default class CanvasFloatingEditorPlugin extends Plugin {
 	isActiveCanvasNodeMenu(): HTMLElement | null {
 		const node = this.findActiveCanvasNode();
 		if (!node) return null;
-
-		const leaves = this.app.workspace.getLeavesOfType('canvas');
-		for (const leaf of leaves) {
-			const container = (leaf.view as CanvasViewLike).containerEl;
-			if (container?.contains(node)) return node;
-		}
-		return null;
+		return this.isSingleTextNode(node) ? node : null;
 	}
 
 	tryInjectMenuItem(menuEl: HTMLElement) {
@@ -192,13 +195,25 @@ export default class CanvasFloatingEditorPlugin extends Plugin {
 
 			const canvasNode = target.closest<HTMLElement>('.canvas-node');
 			if (!canvasNode) return;
+			this.lastInteractedNodeEl = canvasNode;
 
 			window.requestAnimationFrame(() => {
+				if (!this.isSingleTextNode(canvasNode)) {
+					this.removeToolbarButton();
+					return;
+				}
 				this.injectButtonIntoToolbar(canvasNode);
 			});
 		};
 
+		this.contextMenuHandler = (e: MouseEvent) => {
+			const target = e.target as HTMLElement;
+			const canvasNode = target?.closest<HTMLElement>('.canvas-node');
+			if (canvasNode) this.lastInteractedNodeEl = canvasNode;
+		};
+
 		document.addEventListener('click', this.clickHandler);
+		document.addEventListener('contextmenu', this.contextMenuHandler);
 
 		// Backup safety net (the DOM observer above is the primary trigger):
 		// periodic re-check while a node is selected. Cheap: remembered
@@ -216,7 +231,10 @@ export default class CanvasFloatingEditorPlugin extends Plugin {
 	 */
 	ensureToolbarButton() {
 		const node = this.findActiveCanvasNode();
-		if (!node) return;
+		if (!node || !this.isSingleTextNode(node)) {
+			this.removeToolbarButton();
+			return;
+		}
 
 		// Toolbar element from a previous injection is still in the DOM?
 		if (this.lastToolbarEl?.isConnected) {
@@ -284,10 +302,8 @@ export default class CanvasFloatingEditorPlugin extends Plugin {
 		btn.addEventListener('click', (e) => {
 			e.stopPropagation();
 			e.preventDefault();
-			// The toolbar may be shared/moved between nodes, so resolve the
-			// currently selected node at click time instead of trusting the
-			// element captured during injection.
 			const currentNode = this.findActiveCanvasNode() ?? nodeEl;
+			if (!this.isSingleTextNode(currentNode)) return;
 			this.openFloatingEditor(currentNode);
 		});
 	}
@@ -295,16 +311,41 @@ export default class CanvasFloatingEditorPlugin extends Plugin {
 	// ─── Helpers ─────────────────────────────────────────────────────────────
 
 	findActiveCanvasNode(): HTMLElement | null {
-		const activeNode = document.querySelector('.canvas-node.is-focused, .canvas-node.is-selected');
-		if (activeNode) return activeNode as HTMLElement;
+		const recent = this.lastInteractedNodeEl;
+		if (recent?.isConnected && (
+			recent.classList.contains('is-focused') ||
+			recent.classList.contains('is-selected') ||
+			recent.classList.contains('is-editing')
+		)) {
+			return recent;
+		}
 
-		const canvasNodes = document.querySelectorAll('.canvas-node');
-		for (let i = 0; i < canvasNodes.length; i++) {
-			const node = canvasNodes[i];
-			if (!node) continue;
-			if (node.classList.contains('is-editing') || node.classList.contains('is-selected')) {
-				return node as HTMLElement;
-			}
+		// Never pick the first match across several Canvas tabs. A unique
+		// match is safe; otherwise wait for an interaction to identify the tab.
+		const nodes = document.querySelectorAll<HTMLElement>(
+			'.canvas-node.is-focused, .canvas-node.is-selected, .canvas-node.is-editing',
+		);
+		return nodes.length === 1 ? nodes[0] ?? null : null;
+	}
+
+	removeToolbarButton() {
+		this.lastToolbarEl?.querySelector('.cfe-float-btn')?.remove();
+		this.lastToolbarEl = null;
+	}
+
+	isSingleTextNode(nodeEl: HTMLElement): boolean {
+		const context = this.findCanvasContext(nodeEl);
+		if (!context.canvas || context.canvas.selection?.size !== 1) return false;
+		return context.canvasNode?.getData?.()?.type === 'text';
+	}
+
+	/** Find the Canvas runtime belonging to this DOM node, not another tab. */
+	findCanvasForNode(nodeEl: HTMLElement): CanvasLike | null {
+		const nodeRoot = nodeEl.closest<HTMLElement>('.canvas-node') ?? nodeEl;
+		const leaves = this.app.workspace.getLeavesOfType('canvas');
+		for (const leaf of leaves) {
+			const view = leaf.view as CanvasViewLike;
+			if (view.containerEl?.contains(nodeRoot)) return view.canvas ?? null;
 		}
 		return null;
 	}
@@ -324,20 +365,27 @@ export default class CanvasFloatingEditorPlugin extends Plugin {
 			if (!canvas || !view.containerEl?.contains(nodeRoot)) continue;
 
 			const canvasFile: TFile | null = view.file ?? null;
-
-			// 1) From the current selection (most reliable)
-			let canvasNode: CanvasNodeLike | null = null;
-			try {
-				const sel = Array.from(canvas.selection ?? []);
-				if (sel.length > 0) canvasNode = sel[0] ?? null;
-			} catch {
-				/* ignore */
+			const selectionSize = canvas.selection?.size ?? 0;
+			if (selectionSize > 1) {
+				return { canvas, canvasFile, canvasNode: null };
 			}
 
-			// 2) data-id fallback
+			// 1) Resolve by the clicked DOM node's id first. This prevents
+			// multi-selection from selecting an unrelated node.
+			let canvasNode: CanvasNodeLike | null = null;
 			const nodeId = nodeRoot.dataset?.id ?? null;
-			if (!canvasNode && nodeId && canvas.nodes) {
+			if (nodeId && canvas.nodes) {
 				canvasNode = canvas.nodes.get(nodeId) ?? null;
+			}
+
+			// 2) Selection is only a safe fallback for exactly one selected node.
+			if (!canvasNode) {
+				try {
+					const sel = Array.from(canvas.selection ?? []);
+					if (sel.length === 1) canvasNode = sel[0] ?? null;
+				} catch {
+					/* ignore */
+				}
 			}
 
 			// 3) CSS transform position match fallback
@@ -366,8 +414,14 @@ export default class CanvasFloatingEditorPlugin extends Plugin {
 	// ─── Floating editor ─────────────────────────────────────────────────────
 
 	openFloatingEditor(nodeEl: HTMLElement) {
+		if (this.activeModal || !this.isSingleTextNode(nodeEl)) return;
 		const modal = new FloatingEditorModal(this.app, this, nodeEl);
+		this.activeModal = modal;
 		modal.open();
+	}
+
+	clearActiveModal(modal: FloatingEditorModal) {
+		if (this.activeModal === modal) this.activeModal = null;
 	}
 }
 
@@ -532,6 +586,7 @@ class FloatingEditorModal extends Modal {
 		this.mdView = null;
 
 		contentElEmpty(this);
+		this.plugin.clearActiveModal(this);
 	}
 
 	/**
@@ -651,6 +706,13 @@ class FloatingEditorModal extends Modal {
 		const nodeRoot = this.nodeEl.closest<HTMLElement>('.canvas-node') ?? this.nodeEl;
 		const nodeId = canvasNode?.getData?.()?.id ?? nodeRoot.dataset?.id ?? null;
 
+		// Refuse to save if the current Canvas is multi-selected. This is a
+		// final guard against editing the wrong node.
+		if (canvas?.selection && canvas.selection.size !== 1) {
+			new Notice('Save failed: select exactly one canvas node.');
+			return;
+		}
+
 		// 1. Canvas runtime API (preferred, updates the canvas instantly)
 		const node = canvasNode ?? (canvas && nodeId ? canvas.nodes?.get(nodeId) : null);
 		if (node?.setData && canvas) {
@@ -670,16 +732,19 @@ class FloatingEditorModal extends Modal {
 		// 2. File-level fallback: rewrite the .canvas JSON on disk
 		if (canvasFile && nodeId) {
 			try {
-				const json = JSON.parse(await this.app.vault.read(canvasFile)) as {
-					nodes?: Array<{ id?: string; type?: string; text?: string }>;
-				};
-				const nd = json.nodes?.find((n) => n.id === nodeId);
-				if (nd && typeof nd.text === 'string') {
+				await this.app.vault.process(canvasFile, (content) => {
+					const json = JSON.parse(content) as {
+						nodes?: Array<{ id?: string; type?: string; text?: string }>;
+					};
+					const nd = json.nodes?.find((n) => n.id === nodeId);
+					if (!nd || typeof nd.text !== 'string') {
+						throw new Error('Canvas text node not found');
+					}
 					nd.text = newText;
-					await this.app.vault.modify(canvasFile, JSON.stringify(json));
-					this.originalText = newText;
-					return;
-				}
+					return JSON.stringify(json);
+				});
+				this.originalText = newText;
+				return;
 			} catch (e) {
 				console.warn('[CanvasFloatingEditor] file save failed:', e);
 			}

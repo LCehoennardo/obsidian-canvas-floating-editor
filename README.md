@@ -2,13 +2,11 @@
 
 Adds a **floating editor** for Obsidian Canvas text nodes — edit node content in a large, native, WYSIWYG editor instead of the tiny inline box.
 
-![Demo](https://img.shields.io/badge/Obsidian-Canvas%20Floating%20Editor-7c3aed)
-
 ## Features
 
 - **Floating Edit** on the node toolbar (pencil-ruler icon) and in the node context menu
 - Embeds Obsidian's **native Markdown editor** (CodeMirror) inside a modal — full live-preview, WYSIWYG, all native keybindings
-- **Autosave** while typing (debounced), so closing the modal never loses changes
+- **Autosave** while typing (debounced); changes are flushed when the modal closes
 - **Resizable modal** — drag the bottom-right handle; your preferred size is remembered in settings
 - Preserves the node's raw Markdown source (headings, lists, code blocks, …)
 - Configurable editor width & height in settings
@@ -31,13 +29,16 @@ The floating editor reads the node's raw markdown from the canvas runtime (falli
 
 ## Development
 
+For a standalone clone of this plugin repository:
+
 ```bash
 npm install
-npm run dev          # esbuild watch → main.js at repo root
-npm run open:vault   # open the bundled test vault (hot-reload wired up)
+npm run dev          # esbuild watch → main.js in this repository
+npm run build        # production build
+npm run lint
 ```
 
-The bundled `vault/` symlinks the built plugin into `.obsidian/plugins/canvas-floating-editor/`; the Hot Reload plugin picks up rebuilds automatically.
+When used inside the author's private `obsidian-plugins` workspace, the shared test vault is located at `../../dev-vault/`. The `open:vault` command is a macOS-only workspace convenience command; it is not required for building or installing the plugin.
 
 ## License
 
