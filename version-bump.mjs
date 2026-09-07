@@ -1,6 +1,10 @@
 import { readFileSync, writeFileSync } from 'fs';
 
 const targetVersion = process.env.npm_package_version;
+if (!targetVersion) {
+	console.error('ERROR: run this via `npm run version` (needs npm_package_version), not directly with node.');
+	process.exit(1);
+}
 
 // read minAppVersion from manifest.json and bump version to target version
 const manifest = JSON.parse(readFileSync('manifest.json', 'utf8'));
