@@ -2,6 +2,12 @@
 
 Adds a **floating editor** for Obsidian Canvas text nodes — edit node content in a large, native, WYSIWYG editor instead of the tiny inline box.
 
+## Why Canvas Floating Editor?
+
+Obsidian Canvas already supports inline editing, but small cards can be uncomfortable for longer Markdown content. Canvas Floating Editor opens the selected text node in a larger, resizable floating editor while keeping the Canvas context visible.
+
+Unlike a side-panel editor, the editor follows the selected Canvas node and can be opened directly from the node toolbar or context menu. It does not replace Canvas's native inline editor; it provides a larger editing surface for long or complex text nodes.
+
 ## Features
 
 - **Floating Edit** on the node toolbar (pencil-ruler icon) and in the node context menu

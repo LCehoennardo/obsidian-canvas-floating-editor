@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-canvas-floating-editor",
-	"version": "1.0.1",
+	"version": "1.0.2",
 	"description": "Adds a floating WYSIWYG editor for canvas text nodes, reachable from the node toolbar and context menu.",
 	"main": "main.js",
 	"type": "module",

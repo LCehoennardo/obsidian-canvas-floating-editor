@@ -378,8 +378,13 @@ export default class CanvasFloatingEditorPlugin extends Plugin {
 				canvasNode = canvas.nodes.get(nodeId) ?? null;
 			}
 
-			// 2) Selection is only a safe fallback for exactly one selected node.
-			if (!canvasNode) {
+			// 2) Selection is only safe when this DOM node itself is selected.
+			// Never use selection[0] for an unrelated or stale DOM element.
+			if (!canvasNode && (
+				nodeRoot.classList.contains('is-selected') ||
+				nodeRoot.classList.contains('is-focused') ||
+				nodeRoot.classList.contains('is-editing')
+			)) {
 				try {
 					const sel = Array.from(canvas.selection ?? []);
 					if (sel.length === 1) canvasNode = sel[0] ?? null;
