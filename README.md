@@ -44,8 +44,6 @@ npm run build        # production build
 npm run lint
 ```
 
-When used inside the author's private `obsidian-plugins` workspace, the shared test vault is located at `../../dev-vault/`. The `open:vault` command is a macOS-only workspace convenience command; it is not required for building or installing the plugin.
-
 ## License
 
 MIT
